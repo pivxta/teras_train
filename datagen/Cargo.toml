@@ -1,0 +1,11 @@
+[package]
+name = "datagen"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.97"
+dama.workspace = true
+clap = { version = "4.5.32", features = ["derive"] }
+tempfile = "3.19.1"
+dataformat = { version = "0.1.0", path = "../dataformat" }

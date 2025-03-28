@@ -1,0 +1,13 @@
+[package]
+name = "dataformat"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+dama = { workspace = true }
+thiserror = "2.0.11"
+serde = { version = "1.0.219", features = ["derive"] }
+
+[dev-dependencies]
+rand = "0.9.0"
+rand_xoshiro = "0.7.0"
