@@ -1,2 +1,6 @@
 /Cargo.lock
 /target
+/.venv
+/models
+/train/__pycache__
+/*.bin

@@ -1,8 +1,8 @@
+use bincode::{Decode, Encode};
 use dama::{
     position, ByColor, Color, InvalidPositionError, Outcome, Piece, Position, Rank, Square,
     SquareSet,
 };
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -13,7 +13,7 @@ pub struct Sample {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, Encode, Decode)]
 pub struct PackedSample {
     pieces: PackedPieces,
     occupied: u64,
@@ -137,7 +137,7 @@ impl PackedSample {
         let position = setup
             .into_position()
             .map_err(|err| UnpackError::InvalidPosition(err))?;
-        
+
         let outcome = match self.game_outcome {
             0b11 => Outcome::Draw,
             0b10 => Outcome::Winner(Color::White),
@@ -159,7 +159,7 @@ impl PackedSample {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, Decode, Encode)]
 struct PackedPieces([u8; 16]);
 
 impl PackedPieces {
@@ -265,7 +265,7 @@ mod tests {
         let sample = Sample {
             position: position.clone(),
             outcome: random_outcome(rng),
-            eval: random_eval(rng)
+            eval: random_eval(rng),
         };
         let packed = sample.pack().unwrap();
         let unpacked = packed.unpack().unwrap();
@@ -275,7 +275,7 @@ mod tests {
     fn random_eval(rng: &mut impl Rng) -> Option<i16> {
         match rng.random_range(0..100) {
             0..=10 => None,
-            _ => Some(rng.random_range(-5000..=5000))
+            _ => Some(rng.random_range(-5000..=5000)),
         }
     }
 

@@ -1,12 +1,13 @@
 [package]
-name = "datagen"
+name = "dataloader"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+crate-type = ["cdylib"]
+
 [dependencies]
-anyhow = "1.0.97"
-dama.workspace = true
-clap = { version = "4.5.32", features = ["derive"] }
-dataformat = { version = "0.1.0", path = "../dataformat" }
 bincode = "2.0.1"
-indicatif = "0.17.11"
+dama.workspace = true
+dataformat = { version = "0.1.0", path = "../dataformat" }
+rand = "0.9.0"
