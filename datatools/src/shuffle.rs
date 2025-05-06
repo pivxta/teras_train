@@ -3,11 +3,15 @@ use core::mem;
 use dataformat::PackedSample;
 use indicatif::{ProgressBar, ProgressStyle};
 use rand::{Rng, seq::SliceRandom};
-use std::{io::SeekFrom, path::{Path, PathBuf}, time::Duration};
+use std::{
+    io::SeekFrom,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 use tokio::{
     fs::{File, OpenOptions},
     io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt, BufReader, BufWriter},
-    sync::mpsc::{unbounded_channel, UnboundedSender},
+    sync::mpsc::{UnboundedSender, unbounded_channel},
 };
 
 #[derive(clap::Args)]
@@ -36,9 +40,13 @@ pub async fn shuffle(mut input_file: File, output_path: Option<&Path>) -> anyhow
     input_file.seek(SeekFrom::Start(0)).await?;
 
     let progress = ProgressBar::no_length()
-        .with_style(ProgressStyle::with_template("{spinner} [{elapsed_precise:.yellow}] [{bar:20}] {msg} {pos}/{len} blocks done. ")
+        .with_style(
+            ProgressStyle::with_template(
+                "{spinner} [{elapsed_precise:.yellow}] [{bar:20}] {msg} {pos}/{len} blocks done. ",
+            )
             .unwrap()
-            .progress_chars("##-"))
+            .progress_chars("##-"),
+        )
         .with_message("shuffling positions...");
     progress.enable_steady_tick(Duration::from_millis(50));
 
@@ -53,7 +61,7 @@ pub async fn shuffle(mut input_file: File, output_path: Option<&Path>) -> anyhow
         input_file
     };
 
-    let progress = ProgressBar::new(positions as u64)
+    let progress = ProgressBar::new(positions)
         .with_style(ProgressStyle::with_template("{spinner} [{elapsed_precise:.yellow}] [{bar:20}] {msg} {pos}/{len} positions written.")
             .unwrap()
             .progress_chars("##-"))
@@ -77,8 +85,7 @@ async fn divide_and_shuffle(
     progress: &ProgressBar,
     file: &mut File,
 ) -> anyhow::Result<(Vec<File>, Vec<u64>, u64)> {
-    let positions = file.seek(SeekFrom::End(0)).await? 
-        / mem::size_of::<PackedSample>() as u64;
+    let positions = file.seek(SeekFrom::End(0)).await? / mem::size_of::<PackedSample>() as u64;
     file.rewind().await?;
 
     let mut positions_remaining = positions;

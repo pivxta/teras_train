@@ -1,10 +1,20 @@
-use std::{fmt::Write, path::PathBuf, process::Stdio, time::{Duration, Instant}};
-use indicatif::{ProgressBar, ProgressStyle};
 use anyhow::Context;
 use dama::{Color, Move, Outcome, Position, ToMove, UciMove};
 use dataformat::{PackedSample, Sample};
-use rand::{seq::IndexedRandom, Rng};
-use tokio::{fs::{File, OpenOptions}, io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter}, process::{self, Command}, sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender}};
+use indicatif::{ProgressBar, ProgressStyle};
+use rand::{Rng, seq::IndexedRandom};
+use std::{
+    fmt::Write,
+    path::PathBuf,
+    process::Stdio,
+    time::{Duration, Instant},
+};
+use tokio::{
+    fs::{File, OpenOptions},
+    io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter},
+    process::{self, Command},
+    sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel},
+};
 
 use crate::shuffle::shuffle;
 
@@ -53,13 +63,13 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         let outcome_send = outcome_send.clone();
         let command = args.command.clone();
         tokio::spawn(run_games(
-            sample_send, 
-            outcome_send, 
-            command, 
-            rounds, 
-            args.nodes, 
-            args.depth, 
-            args.random_moves
+            sample_send,
+            outcome_send,
+            command,
+            rounds,
+            args.nodes,
+            args.depth,
+            args.random_moves,
         ));
     }
     drop(outcome_send);
@@ -75,7 +85,10 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn write_to_file(mut sample_recv: UnboundedReceiver<PackedSample>, output_file: &mut File) -> anyhow::Result<()> {
+async fn write_to_file(
+    mut sample_recv: UnboundedReceiver<PackedSample>,
+    output_file: &mut File,
+) -> anyhow::Result<()> {
     let mut writer = BufWriter::new(output_file);
     let mut written = 0;
     while let Some(sample) = sample_recv.recv().await {
@@ -87,13 +100,20 @@ async fn write_to_file(mut sample_recv: UnboundedReceiver<PackedSample>, output_
     anyhow::Result::<()>::Ok(())
 }
 
-async fn show_progress(mut outcome_recv: UnboundedReceiver<Outcome>, games: u32) -> anyhow::Result<()> {
-     let progress = ProgressBar::new(games as u64)
-        .with_style(ProgressStyle::with_template("\
+async fn show_progress(
+    mut outcome_recv: UnboundedReceiver<Outcome>,
+    games: u32,
+) -> anyhow::Result<()> {
+    let progress = ProgressBar::new(games as u64)
+        .with_style(
+            ProgressStyle::with_template(
+                "\
             {spinner} [{elapsed_precise:.yellow}] [{bar:20}] \
-            running games... {pos}/{len} games finished {msg}")
+            running games... {pos}/{len} games finished {msg}",
+            )
             .unwrap()
-            .progress_chars("##-"))
+            .progress_chars("##-"),
+        )
         .with_message("| 0W - 0B - 0D");
     progress.enable_steady_tick(Duration::from_millis(50));
 
@@ -118,25 +138,26 @@ async fn show_progress(mut outcome_recv: UnboundedReceiver<Outcome>, games: u32)
 async fn run_games(
     sample_sender: UnboundedSender<PackedSample>,
     outcome_sender: UnboundedSender<Outcome>,
-    command: String, 
-    games: u32, 
-    nodes: Option<u64>, 
+    command: String,
+    games: u32,
+    nodes: Option<u64>,
     depth: Option<u32>,
-    random_moves: u32
+    random_moves: u32,
 ) -> anyhow::Result<()> {
-
     let mut engine_white = Engine::new(
         Command::new(&command)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .spawn()?
-    ).await?;
+            .spawn()?,
+    )
+    .await?;
     let mut engine_black = Engine::new(
         Command::new(&command)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .spawn()?
-    ).await?;
+            .spawn()?,
+    )
+    .await?;
 
     for _ in 0..games {
         engine_white.new_game().await?;
@@ -152,7 +173,7 @@ async fn run_games(
 
             let engine = match game.position().side_to_move() {
                 Color::White => &mut engine_white,
-                Color::Black => &mut engine_black
+                Color::Black => &mut engine_black,
             };
             let (mv, eval) = engine.go(game.position(), Go { nodes, depth }).await?;
             game.play(&mv, eval);
@@ -169,7 +190,8 @@ async fn run_games(
                     position: pos.clone(),
                     outcome,
                     eval: Some(eval.clamp(i16::MIN as i32, i16::MAX as i32) as i16),
-                }.pack()?; 
+                }
+                .pack()?;
                 sample_sender.send(sample)?;
             }
         }
@@ -182,17 +204,17 @@ async fn run_games(
 }
 
 fn random_opening(start_position: Position, random_moves: u32, rng: &mut impl Rng) -> Position {
-    loop {
+    'outer: loop {
         let mut position = start_position.clone();
         let mut ply = 2 * random_moves;
         if rng.random_bool(0.5) {
-            ply -= 1; 
+            ply -= 1;
         }
-        
+
         for _ in 0..ply {
             let moves = position.legal_moves();
             if moves.is_empty() {
-                continue;
+                continue 'outer;
             }
             let mv = moves.choose(rng).unwrap();
             position.play_unchecked(mv);
@@ -203,22 +225,20 @@ fn random_opening(start_position: Position, random_moves: u32, rng: &mut impl Rn
 
 struct Engine {
     stdin: process::ChildStdin,
-    lines: io::Lines<BufReader<process::ChildStdout>>
+    lines: io::Lines<BufReader<process::ChildStdout>>,
 }
 
 struct Go {
     nodes: Option<u64>,
-    depth: Option<u32>
+    depth: Option<u32>,
 }
 
 impl Engine {
     async fn new(mut process: process::Child) -> anyhow::Result<Engine> {
         let stdin = process.stdin.take().expect("failed to get process stdin");
-        let lines = BufReader::new(process.stdout.take().expect("failed to get process stdout")).lines();
-        let mut engine = Engine {
-            stdin,
-            lines
-        };
+        let lines =
+            BufReader::new(process.stdout.take().expect("failed to get process stdout")).lines();
+        let mut engine = Engine { stdin, lines };
         engine.ping().await?;
         Ok(engine)
     }
@@ -245,14 +265,15 @@ impl Engine {
         self.send("ucinewgame").await?;
         Ok(())
     }
-    
+
     async fn quit(&mut self) -> anyhow::Result<()> {
         self.send("quit").await?;
         Ok(())
     }
 
     async fn go(&mut self, position: &Position, go: Go) -> anyhow::Result<(Move, Option<i32>)> {
-        self.send(format!("position fen {}", position.fen())).await?;
+        self.send(format!("position fen {}", position.fen()))
+            .await?;
         let mut cmd = String::from("go");
         if let Some(depth) = go.depth {
             cmd.write_fmt(format_args!(" depth {}", depth))?;
@@ -298,11 +319,15 @@ impl Engine {
             }
         }
 
-        Err(anyhow::Error::msg("program finished before returning best move"))
+        Err(anyhow::Error::msg(
+            "program finished before returning best move",
+        ))
     }
 
     async fn send(&mut self, cmd: impl Into<String>) -> io::Result<()> {
-        self.stdin.write_all(format!("{}\n", cmd.into()).as_bytes()).await?;
+        self.stdin
+            .write_all(format!("{}\n", cmd.into()).as_bytes())
+            .await?;
         Ok(())
     }
 
@@ -310,7 +335,6 @@ impl Engine {
         self.lines.next_line().await
     }
 }
-
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Game {
@@ -323,7 +347,7 @@ impl Game {
     fn from_position(initial_position: Position) -> Self {
         Game {
             stack: vec![initial_position],
-            data_stack: vec![]
+            data_stack: vec![],
         }
     }
 
@@ -336,10 +360,7 @@ impl Game {
     fn play(&mut self, mv: &Move, eval: Option<i32>) {
         self.stack.push(self.position().clone());
         self.data_stack.push((*mv, eval));
-        self.stack
-            .last_mut()
-            .unwrap()
-            .play_unchecked(&mv);
+        self.stack.last_mut().unwrap().play_unchecked(mv);
     }
 
     #[inline]

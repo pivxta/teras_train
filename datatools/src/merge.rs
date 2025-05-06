@@ -1,7 +1,10 @@
-use std::{path::PathBuf, time::Duration};
 use anyhow::Context;
 use indicatif::{ProgressBar, ProgressStyle};
-use tokio::{fs::{File, OpenOptions}, io};
+use std::{path::PathBuf, time::Duration};
+use tokio::{
+    fs::{File, OpenOptions},
+    io,
+};
 
 use crate::shuffle::shuffle;
 
@@ -10,7 +13,7 @@ pub struct Args {
     #[clap(help("Input data files"))]
     inputs: Vec<PathBuf>,
     #[clap(short('o'))]
-    output: PathBuf
+    output: PathBuf,
 }
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
@@ -22,12 +25,16 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         .open(&args.output)
         .await
         .with_context(|| format!("failed to open output path `{}`", args.output.display()))?;
-    
+
     let progress = ProgressBar::new(args.inputs.len() as u64)
-        .with_style(ProgressStyle::with_template("{spinner} [{elapsed_precise:.yellow}] [{bar:20}] {msg} {pos}/{len} files merged")
+        .with_style(
+            ProgressStyle::with_template(
+                "{spinner} [{elapsed_precise:.yellow}] [{bar:20}] {msg} {pos}/{len} files merged",
+            )
             .unwrap()
-            .progress_chars("##-"))
-            .with_message("merging files...");
+            .progress_chars("##-"),
+        )
+        .with_message("merging files...");
     progress.enable_steady_tick(Duration::from_millis(50));
     for input_path in &args.inputs {
         let mut input_file = File::open(input_path)

@@ -1,7 +1,7 @@
 mod extract;
+mod merge;
 mod selfplay;
 mod shuffle;
-mod merge;
 use clap::{Parser, Subcommand};
 
 #[derive(Subcommand)]
@@ -10,7 +10,9 @@ enum Command {
     Extract(extract::Args),
     #[clap(about("Shuffles data files"))]
     Shuffle(shuffle::Args),
-    #[clap(about("Runs games with the specified UCI compliant engine, outputting the resulting data to a file"))]
+    #[clap(about(
+        "Runs games with the specified UCI compliant engine, outputting the resulting data to a file"
+    ))]
     Selfplay(selfplay::Args),
     #[clap(about("Merges two or more data files"))]
     Merge(merge::Args),
