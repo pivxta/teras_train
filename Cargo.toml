@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["dataformat", "datagen", "dataloader"]
+members = ["dataformat", "datatools", "dataloader"]
 
 [workspace.dependencies]
 dama = { path = "../dama" }

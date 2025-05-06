@@ -1,6 +1,10 @@
-use std::{fs::File, io::BufReader};
 use dataformat::PackedSample;
 use rand::seq::SliceRandom;
+use std::{
+    fs::File,
+    io::{BufReader, Read},
+    mem,
+};
 
 use crate::batch::Batch;
 
@@ -31,7 +35,7 @@ impl BatchLoader {
                         continue;
                     }
                 };
-                batch.add(&sample); 
+                batch.add(&sample);
             } else {
                 break;
             }
@@ -43,22 +47,20 @@ impl BatchLoader {
         if self.buffer.is_empty() && !self.fill_buffer() {
             return None;
         }
-        self.buffer.pop()         
+        self.buffer.pop()
     }
 
     fn fill_buffer(&mut self) -> bool {
         self.buffer.clear();
         for _ in 0..BUFFER_SAMPLES {
-            if let Ok(sample) = bincode::decode_from_std_read(&mut self.reader, bincode::config::standard()) {
-                self.buffer.push(sample);
+            let mut buffer = [0; mem::size_of::<PackedSample>()];
+            if self.reader.read_exact(&mut buffer).is_ok() {
+                self.buffer.push(*bytemuck::from_bytes(&buffer));
             } else {
                 break;
             }
         }
         self.buffer.shuffle(&mut rand::rng());
-        !self.buffer.is_empty() 
+        !self.buffer.is_empty()
     }
 }
-
-
-

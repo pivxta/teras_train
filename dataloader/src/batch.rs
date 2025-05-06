@@ -1,6 +1,6 @@
+use crate::feature::{MAX_ACTIVE_FEATURES, feature};
 use dama::{Color, Piece, Position};
 use dataformat::Sample;
-use crate::feature::{feature, MAX_ACTIVE_FEATURES};
 
 #[derive(Clone, Debug)]
 pub struct Batch {
@@ -26,10 +26,10 @@ impl Batch {
             outcomes: vec![0.0; capacity].into(),
         }
     }
-        
+
     #[inline]
     pub fn clear(&mut self) {
-        self.entries = 0; 
+        self.entries = 0;
         self.total_features = 0;
     }
 
@@ -38,18 +38,19 @@ impl Batch {
         assert!(self.entries < self.capacity);
 
         let index = self.entries;
-        self.eval_centipawns[index] = sample
-            .eval
-            .map(|e| e as f32)
-            .unwrap_or(match sample.outcome.winner() {
-                Some(color) if color == sample.position.side_to_move() => f32::INFINITY,
-                Some(_) => f32::NEG_INFINITY,
-                None => 0.0
-            });
+        self.eval_centipawns[index] =
+            sample
+                .eval
+                .map(|e| e as f32)
+                .unwrap_or(match sample.outcome.winner() {
+                    Some(color) if color == sample.position.side_to_move() => f32::INFINITY,
+                    Some(_) => f32::NEG_INFINITY,
+                    None => 0.0,
+                });
         self.outcomes[index] = match sample.outcome.winner() {
             Some(color) if color == sample.position.side_to_move() => 1.0,
             Some(_) => 0.0,
-            None => 0.5
+            None => 0.5,
         };
         self.add_features(&sample.position);
         self.entries += 1;

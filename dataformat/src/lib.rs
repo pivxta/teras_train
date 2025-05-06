@@ -1,4 +1,3 @@
-use bincode::{Decode, Encode};
 use dama::{
     position, ByColor, Color, InvalidPositionError, Outcome, Piece, Position, Rank, Square,
     SquareSet,
@@ -13,12 +12,12 @@ pub struct Sample {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Default, Encode, Decode)]
+#[derive(Clone, Copy, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct PackedSample {
     pieces: PackedPieces,
-    occupied: u64,
-    eval: i16,
-    fullmove_number: u16,
+    occupied: [u8; 8],
+    eval: [u8; 2],
+    fullmove_number: [u8; 2],
     halfmove_clock: u8,
     en_passant: u8,
     side_to_move: u8,
@@ -81,12 +80,12 @@ impl PackedSample {
 
         Ok(PackedSample {
             pieces,
-            occupied: position.occupied().into(),
+            occupied: position.occupied().to_bits().to_le_bytes(),
             en_passant: position.en_passant().map(|sq| sq as u8).unwrap_or(0),
             halfmove_clock: position.halfmove_clock().min(255) as u8,
-            fullmove_number: position.fullmove_number() as u16,
+            fullmove_number: (position.fullmove_number() as u16).to_le_bytes(),
             side_to_move: position.side_to_move() as u8,
-            eval: sample.eval.unwrap_or(NO_EVAL),
+            eval: sample.eval.unwrap_or(NO_EVAL).to_le_bytes(),
             game_outcome: match sample.outcome {
                 Outcome::Draw => 0b11,
                 Outcome::Winner(Color::White) => 0b10,
@@ -110,10 +109,10 @@ impl PackedSample {
         setup.set_side_to_move(side_to_move);
 
         setup
-            .set_fullmove_number(self.fullmove_number as u32)
+            .set_fullmove_number(u16::from_le_bytes(self.fullmove_number) as u32)
             .set_halfmove_clock(self.halfmove_clock as u32);
 
-        let occupied = SquareSet::from(self.occupied);
+        let occupied = SquareSet::from(u64::from_le_bytes(self.occupied));
         if occupied.count() > 32 {
             return Err(UnpackError::TooManyPieces);
         }
@@ -136,7 +135,7 @@ impl PackedSample {
 
         let position = setup
             .into_position()
-            .map_err(|err| UnpackError::InvalidPosition(err))?;
+            .map_err(UnpackError::InvalidPosition)?;
 
         let outcome = match self.game_outcome {
             0b11 => Outcome::Draw,
@@ -145,7 +144,7 @@ impl PackedSample {
             _ => return Err(UnpackError::InvalidOutcome),
         };
 
-        let eval = match self.eval {
+        let eval = match i16::from_le_bytes(self.eval) {
             NO_EVAL => None,
             eval => Some(eval),
         };
@@ -159,7 +158,7 @@ impl PackedSample {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Default, Decode, Encode)]
+#[derive(Clone, Copy, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
 struct PackedPieces([u8; 16]);
 
 impl PackedPieces {

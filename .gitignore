@@ -4,3 +4,4 @@
 /models
 /train/__pycache__
 /*.bin
+/.mypy_cache

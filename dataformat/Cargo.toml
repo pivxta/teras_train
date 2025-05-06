@@ -7,6 +7,7 @@ edition = "2021"
 dama = { workspace = true }
 thiserror = "2.0.11"
 bincode = "2.0.1"
+bytemuck = { version = "1.23.0", features = ["derive"] }
 
 [dev-dependencies]
 rand = "0.9.0"

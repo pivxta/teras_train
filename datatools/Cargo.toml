@@ -1,5 +1,5 @@
 [package]
-name = "datagen"
+name = "datatools"
 version = "0.1.0"
 edition = "2024"
 
@@ -8,5 +8,8 @@ anyhow = "1.0.97"
 dama.workspace = true
 clap = { version = "4.5.32", features = ["derive"] }
 dataformat = { version = "0.1.0", path = "../dataformat" }
-bincode = "2.0.1"
 indicatif = "0.17.11"
+bytemuck = { version = "1.23.0", features = ["derive"] }
+tempfile = "3.19.1"
+rand = "0.9.1"
+tokio = { version = "1.44.2", features = ["full"] }
