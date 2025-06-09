@@ -34,8 +34,10 @@ pub struct Args {
     nodes: Option<u64>,
     #[clap(long("depth"))]
     depth: Option<u32>,
-    #[clap(long("random-moves"))]
-    random_moves: u32,
+    #[clap(long("min-random-moves"))]
+    min_random_moves: u32,
+    #[clap(long("max-random-moves"))]
+    max_random_moves: u32,
 }
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
@@ -69,7 +71,8 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             rounds,
             args.nodes,
             args.depth,
-            args.random_moves,
+            args.min_random_moves,
+            args.max_random_moves,
         ));
     }
     drop(outcome_send);
@@ -142,7 +145,8 @@ async fn run_games(
     games: u32,
     nodes: Option<u64>,
     depth: Option<u32>,
-    random_moves: u32,
+    min_random_moves: u32,
+    max_random_moves: u32,
 ) -> anyhow::Result<()> {
     let mut engine_white = Engine::new(
         Command::new(&command)
@@ -163,7 +167,12 @@ async fn run_games(
         engine_white.new_game().await?;
         engine_black.new_game().await?;
 
-        let position = random_opening(Position::new_initial(), random_moves, &mut rand::rng());
+        let position = random_opening(
+            Position::new_initial(), 
+            min_random_moves, 
+            max_random_moves, 
+            &mut rand::rng()
+        );
 
         let mut game = Game::from_position(position);
         let outcome = loop {
@@ -203,15 +212,19 @@ async fn run_games(
     Ok(())
 }
 
-fn random_opening(start_position: Position, random_moves: u32, rng: &mut impl Rng) -> Position {
+fn random_opening(
+    start_position: Position, 
+    min_random_moves: u32, 
+    max_random_moves: u32, 
+    rng: &mut impl Rng
+) -> Position {
     'outer: loop {
         let mut position = start_position.clone();
-        let mut ply = 2 * random_moves;
-        if rng.random_bool(0.5) {
-            ply -= 1;
-        }
+        let plies = rng.random_range(
+            2 * min_random_moves..=2 * max_random_moves + 1
+        );
 
-        for _ in 0..ply {
+        for _ in 0..plies {
             let moves = position.legal_moves();
             if moves.is_empty() {
                 continue 'outer;

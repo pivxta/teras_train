@@ -254,7 +254,7 @@ mod tests {
                 if moves.is_empty() {
                     break;
                 }
-                position.play_unchecked(&moves.choose(&mut rng).unwrap());
+                position.play_unchecked(moves.choose(&mut rng).unwrap());
                 check_roundtrip(&mut rng, &position);
             }
         }

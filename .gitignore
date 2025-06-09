@@ -5,3 +5,4 @@
 /train/__pycache__
 /*.bin
 /.mypy_cache
+/lightning_logs

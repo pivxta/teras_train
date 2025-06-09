@@ -1,4 +1,5 @@
 mod extract;
+mod show;
 mod merge;
 mod selfplay;
 mod shuffle;
@@ -16,6 +17,8 @@ enum Command {
     Selfplay(selfplay::Args),
     #[clap(about("Merges two or more data files"))]
     Merge(merge::Args),
+    #[clap(about("Shows some samples from a dataset, used for debugging"))]
+    Show(show::Args),
 }
 
 #[derive(Parser)]
@@ -33,6 +36,7 @@ async fn main() -> anyhow::Result<()> {
         Command::Shuffle(args) => shuffle::run(args).await?,
         Command::Selfplay(args) => selfplay::run(args).await?,
         Command::Merge(args) => merge::run(args).await?,
+        Command::Show(args) => show::run(args).await?,
     }
     Ok(())
 }

@@ -2,28 +2,8 @@ import ctypes
 import numpy as np
 import os
 import torch
+from feature import FEATURE_COUNT
 from dataclasses import dataclass
-
-FEATURE_COUNT = 768
-
-def load_data_lib():
-    lib = ctypes.cdll.LoadLibrary(
-        "./target/release/libdataloader.so" if os.name != "nt" else
-        "./target/release/dataloader.dll"
-    )
-    lib.create_batch.restype = ctypes.c_void_p
-    lib.batch_capacity.restype = ctypes.c_uint32
-    lib.batch_size.restype = ctypes.c_uint32
-    lib.batch_total_features.restype = ctypes.c_uint32
-    lib.batch_stm_features.restype = ctypes.POINTER(ctypes.c_uint32)
-    lib.batch_non_stm_features.restype = ctypes.POINTER(ctypes.c_uint32)
-    lib.batch_evals.restype = ctypes.POINTER(ctypes.c_float)
-    lib.batch_outcomes.restype = ctypes.POINTER(ctypes.c_float)
-    lib.open_loader.restype = ctypes.c_void_p
-    lib.load_batch.restype = ctypes.c_bool
-    return lib
-
-lib = load_data_lib()
 
 @dataclass 
 class Batch:
@@ -33,9 +13,27 @@ class Batch:
     evals: torch.Tensor
     outcomes: torch.Tensor
 
+def load_data_lib():
+    lib = ctypes.cdll.LoadLibrary(
+        "./target/release/libdataloader.so" if os.name != "nt" else
+        "./target/release/dataloader.dll"
+    )
+    lib.load_batch.restype = ctypes.c_void_p
+    lib.batch_capacity.restype = ctypes.c_uint32
+    lib.batch_size.restype = ctypes.c_uint32
+    lib.batch_total_features.restype = ctypes.c_uint32
+    lib.batch_stm_features.restype = ctypes.POINTER(ctypes.c_uint32)
+    lib.batch_non_stm_features.restype = ctypes.POINTER(ctypes.c_uint32)
+    lib.batch_evals.restype = ctypes.POINTER(ctypes.c_float)
+    lib.batch_outcomes.restype = ctypes.POINTER(ctypes.c_float)
+    lib.open_loader.restype = ctypes.c_void_p
+    return lib
+
+lib = load_data_lib()
+
 class _Batch:
-    def __init__(self, capacity: int):
-        self._ptr = ctypes.c_void_p(lib.create_batch(ctypes.c_uint32(capacity)))
+    def __init__(self, ptr):
+        self._ptr = ptr
 
     def __del__(self):
         self.drop()
@@ -98,8 +96,11 @@ class _Batch:
         )
 
 class _BatchLoader:
-    def __init__(self, path: str):
-        self._ptr = ctypes.c_void_p(lib.open_loader(ctypes.create_string_buffer(bytes(path, "ascii"))))
+    def __init__(self, path: str, batch_size: int):
+        self._ptr = ctypes.c_void_p(lib.open_loader(
+            ctypes.create_string_buffer(bytes(path, "ascii")), 
+            ctypes.c_uint32(batch_size)
+            ))
         if self._ptr.value is None:
             raise Exception(f"failed to load data from file '{path}'")
 
@@ -108,38 +109,27 @@ class _BatchLoader:
             lib.close_loader(self._ptr)
             self._ptr.value = None
 
-    def load(self, batch: _Batch) -> bool:
-        return ctypes.c_bool(lib.load_batch(self._ptr, batch._ptr)).value
+    def load(self) -> _Batch:
+        return _Batch(ctypes.c_void_p(lib.load_batch(self._ptr)))
 
-class DataLoader:
-    def __init__(self, path: str, batch_size: int):
-        self._path = path
-        self._loader = _BatchLoader(path)
-        self._batch = _Batch(batch_size)
+class NnueDataset(torch.utils.data.IterableDataset):
+    def __init__(self, path: str, batch_size: int, epoch_size: int):
+        self._last_batch = None
+        self._loader = _BatchLoader(path, batch_size)
+        self.batches = (epoch_size + batch_size - 1) // batch_size
 
-    def __enter__(self):
-        return self
+    def __del__(self):
+        self._loader.close()
 
-    def __exit__(self, type, value, traceback):
-        self.close()
+    def __len__(self):
+        return self.batches
 
     def __iter__(self):
         return self
 
     def __next__(self) -> Batch:
-        same_epoch, batch = self.load_batch()
-        if not same_epoch:
-            raise StopIteration
-        return batch
-
-    def load_batch(self) -> tuple[bool, Batch]:
-        if not self._loader.load(self._batch):
-            self._loader.close()
-            self._loader = _BatchLoader(self._path)
-            return False, self._batch.to_torch()
-
-        return True, self._batch.to_torch()
-
-    def close(self):
-        self._loader.close()
-        self._batch.drop()
+        if self._last_batch is not None:
+            self._last_batch.drop()
+        self._last_batch = self._loader.load()
+        tensor_batch = self._last_batch.to_torch()
+        return tensor_batch

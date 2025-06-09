@@ -1,31 +1,20 @@
-import math
 import torch
 import chess
 import sys
 import data
-from model import TerasNN
 from dataclasses import dataclass
+
+from model import OUTPUT_SCALING, NNUE
+from feature import FEATURE_COUNT, feature
 
 @dataclass
 class Features:
     stm_features: torch.Tensor
     non_stm_features: torch.Tensor
-
-def feature(
-    perspective: chess.Color, 
-    color: chess.Color, 
-    piece: chess.PieceType,
-    square: chess.Square
-) -> int:
-    square = chess.square_mirror(square) if perspective == chess.BLACK else square
-    index = 0 if perspective == color else 1 
-    index = index * 6 + piece - 1
-    index = index * 64 + square
-    return index
     
 def board_features(board: chess.Board) -> Features:
-    stm_features = torch.zeros((1, data.FEATURE_COUNT))
-    non_stm_features = torch.zeros((1, data.FEATURE_COUNT))
+    stm_features = torch.zeros((1, FEATURE_COUNT))
+    non_stm_features = torch.zeros((1, FEATURE_COUNT))
 
     for color in chess.COLORS:
         for piece in chess.PIECE_TYPES:
@@ -45,13 +34,12 @@ def main():
     board = chess.Board(sys.argv[2])
     features = board_features(board)
 
-    model = TerasNN()
+    model = NNUE(lr=0.0, eval_weight=0.0)
     model.load_state_dict(torch.load(sys.argv[1], weights_only=True))
     model.eval()
 
-    score = model(features).item()
-    pawns = math.log(score / (1 - score)) * 1.73
-    print(f"score: {score} ({pawns:+.2f})")
+    score = model(features).item() * 3.0
+    print(f"score: {score:+.2f}")
 
 if __name__ == "__main__":
     main()

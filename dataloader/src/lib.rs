@@ -11,8 +11,26 @@ pub mod feature;
 pub mod loader;
 
 #[unsafe(no_mangle)]
-unsafe extern "C" fn create_batch(size: u32) -> *mut Batch {
-    Box::into_raw(Box::new(Batch::new(size as usize)))
+unsafe extern "C" fn open_loader(path: *const c_char, batch_size: u32) -> *mut BatchLoader {
+    let path = match unsafe { CStr::from_ptr(path) }.to_str() {
+        Ok(path) => path,
+        Err(_) => return ptr::null_mut(),
+    };
+    let file = match File::open(path) {
+        Ok(file) => file,
+        Err(_) => return ptr::null_mut(),
+    };
+    Box::into_raw(Box::new(BatchLoader::from_file(file, batch_size as usize)))
+}
+
+#[unsafe(no_mangle)]
+unsafe extern "C" fn close_loader(loader: *mut BatchLoader) {
+    drop(unsafe { Box::from_raw(loader) })
+}
+
+#[unsafe(no_mangle)]
+unsafe extern "C" fn load_batch(loader: *mut BatchLoader) -> *mut Batch {
+    unsafe { Box::into_raw(Box::new(loader.as_mut().unwrap().load())) }
 }
 
 #[unsafe(no_mangle)]
@@ -55,25 +73,3 @@ unsafe extern "C" fn batch_outcomes(batch: *const Batch) -> *const f32 {
     unsafe { batch.as_ref().unwrap().outcomes.as_ptr() }
 }
 
-#[unsafe(no_mangle)]
-unsafe extern "C" fn open_loader(path: *const c_char) -> *mut BatchLoader {
-    let path = match unsafe { CStr::from_ptr(path) }.to_str() {
-        Ok(path) => path,
-        Err(_) => return ptr::null_mut(),
-    };
-    let file = match File::open(path) {
-        Ok(file) => file,
-        Err(_) => return ptr::null_mut(),
-    };
-    Box::into_raw(Box::new(BatchLoader::from_file(file)))
-}
-
-#[unsafe(no_mangle)]
-unsafe extern "C" fn close_loader(loader: *mut BatchLoader) {
-    drop(unsafe { Box::from_raw(loader) })
-}
-
-#[unsafe(no_mangle)]
-unsafe extern "C" fn load_batch(loader: *mut BatchLoader, batch: *mut Batch) -> bool {
-    unsafe { loader.as_mut().unwrap().load(batch.as_mut().unwrap()) }
-}
