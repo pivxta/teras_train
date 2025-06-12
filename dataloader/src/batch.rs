@@ -58,8 +58,8 @@ impl Batch {
 
     #[inline]
     fn add_features(&mut self, position: &Position) {
-        for color in Color::ALL {
-            for piece in Piece::ALL {
+        for color in Color::all() {
+            for piece in Piece::all() {
                 for square in position.pieces(piece) & position.colored(color) {
                     self.add_feature(
                         feature(position.side_to_move(), color, piece, square),

@@ -40,6 +40,8 @@ pub enum UnpackError {
     InvalidSideToMove,
     #[error("invalid \"en passant\" field for packed position.")]
     InvalidEnPassant,
+    #[error("invalid piece encoding for packed position.")]
+    InvalidPiece,
     #[error("too many pieces in packed position.")]
     TooManyPieces,
 }
@@ -103,12 +105,10 @@ impl PackedSample {
             setup.set_en_passant(Some(en_passant));
         }
 
-        let side_to_move = *Color::ALL
-            .get(self.side_to_move as usize)
+        let side_to_move = Color::try_from_index(self.side_to_move as usize)
             .ok_or(UnpackError::InvalidSideToMove)?;
-        setup.set_side_to_move(side_to_move);
 
-        setup
+        setup.set_side_to_move(side_to_move)
             .set_fullmove_number(u16::from_le_bytes(self.fullmove_number) as u32)
             .set_halfmove_clock(self.halfmove_clock as u32);
 
@@ -119,7 +119,11 @@ impl PackedSample {
 
         let mut saw_king = ByColor::default();
         for (n, square) in occupied.iter().enumerate() {
-            let (color, piece, is_castling_rook) = self.pieces.get(n);
+            let (color, piece, is_castling_rook) = self
+                .pieces
+                .get(n)
+                .ok_or(UnpackError::InvalidPiece)?;
+
             if piece == Piece::King {
                 saw_king[color] = true;
             }
@@ -172,7 +176,7 @@ impl PackedPieces {
     }
 
     #[inline]
-    fn get(&self, index: usize) -> (Color, Piece, bool) {
+    fn get(&self, index: usize) -> Option<(Color, Piece, bool)> {
         let entry = self.0[index / 2];
         let value = match index % 2 {
             0 => entry & 0xf,
@@ -185,10 +189,10 @@ impl PackedPieces {
             _ => unreachable!(),
         };
         let (piece, is_castling_rook) = match value & PIECE_MASK {
-            CASTLING_ROOK => (Piece::Rook, true),
-            piece => (Piece::ALL[piece as usize - 1], false),
+            CASTLING_ROOK => (Some(Piece::Rook), true),
+            piece => (Piece::try_from_index(piece as usize - 1), false),
         };
-        (color, piece, is_castling_rook)
+        piece.map(|piece| (color, piece, is_castling_rook))
     }
 }
 
