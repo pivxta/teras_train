@@ -168,9 +168,10 @@ struct PackedPieces([u8; 16]);
 impl PackedPieces {
     #[inline]
     fn set(&mut self, index: usize, bits: u8) {
-        self.0[index / 2] |= match index % 2 {
-            0 => bits,
-            1 => bits << 4,
+        let byte_index = index / 2;
+        self.0[byte_index] = match index % 2 {
+            0 => self.0[byte_index] & 0xf0 | bits,
+            1 => self.0[byte_index] & 0x0f | (bits << 4),
             _ => unreachable!(),
         }
     }
@@ -192,7 +193,7 @@ impl PackedPieces {
             CASTLING_ROOK => (Some(Piece::Rook), true),
             piece => (Piece::try_from_index(piece as usize - 1), false),
         };
-        piece.map(|piece| (color, piece, is_castling_rook))
+        Some((color, piece?, is_castling_rook))
     }
 }
 
