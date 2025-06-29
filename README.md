@@ -15,4 +15,4 @@ It still only supports the very simple Board768 feature set, but support for oth
 
 # Acknowledgements
 
-[nnue-pytorch](https://github.com/official-stockfish/nnue-pytorch): This repository and specially [this document](https://github.com/official-stockfish/nnue-pytorch/blob/master/docs/nnue.md) were the only reason I was able to write this tool.
+[nnue-pytorch](https://github.com/official-stockfish/nnue-pytorch): I wouldn't have been able to write this tool without this repository and specially [this document](https://github.com/official-stockfish/nnue-pytorch/blob/master/docs/nnue.md).
